@@ -1,0 +1,5 @@
+psycopg2-binary
+python-dotenv
+alpaca-trade-api
+pandas # Für Datenhandling, falls komplexere Abfragen nötig sind
+# numpy (oft als Abhängigkeit)

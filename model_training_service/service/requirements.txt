@@ -1,0 +1,8 @@
+psycopg2-binary
+python-dotenv
+pandas
+scikit-learn
+torch
+# Ggf. weitere Bibliotheken für Transformer-Modelle wie transformers von Hugging Face, falls wir das nutzen wollen
+# numpy (wird oft als Abhängigkeit von pandas/sklearn/torch mitinstalliert, aber explizit ist sicherer)
+numpy

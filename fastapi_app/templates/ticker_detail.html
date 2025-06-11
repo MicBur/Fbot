@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detailansicht: {{ ticker_symbol }}</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        .chart-container {
+            width: 80%;
+            margin: auto;
+            margin-top: 20px;
+            margin-bottom: 40px;
+        }
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        body.dark-mode .container {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        body.dark-mode h1, body.dark-mode h2 {
+            color: #ffffff;
+        }
+        body.dark-mode .btn-primary {
+            background-color: #0d6efd; /* Bootstrap primary blue */
+            border-color: #0d6efd;
+        }
+        body.dark-mode .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        /* Chart.js dark mode specific styles will be handled via options */
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+        }
+        .theme-switch {
+            display: inline-block;
+            height: 34px;
+            position: relative;
+            width: 60px;
+        }
+        .theme-switch input {
+            display:none;
+        }
+        .slider {
+            background-color: #ccc;
+            bottom: 0;
+            cursor: pointer;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transition: .4s;
+        }
+        .slider:before {
+            background-color: #fff;
+            bottom: 4px;
+            content: "";
+            height: 26px;
+            left: 4px;
+            position: absolute;
+            transition: .4s;
+            width: 26px;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-switch-wrapper">
+        <label class="theme-switch" for="checkbox">
+            <input type="checkbox" id="checkbox" />
+            <div class="slider round"></div>
+        </label>
+        <em>&nbsp;Dark Mode</em>
+    </div>
+
+    <div class="container">
+        <h1 class="mt-5">Aktienkurs und Vorhersage für: <span id="tickerSymbol">{{ ticker_symbol }}</span></h1>
+        
+        <div class="chart-container">
+            <canvas id="priceChart"></canvas>
+        </div>
+
+        <h2 class="mt-3">Sentiment Verlauf</h2>
+        <div class="chart-container">
+            <canvas id="sentimentChart"></canvas>
+        </div>
+
+        <a href="/" class="btn btn-primary mt-3">Zurück zur Übersicht</a>
+    </div>
+
+    <script>
+        const tickerSymbol = document.getElementById('tickerSymbol').innerText;
+        let priceChartInstance = null;
+        let sentimentChartInstance = null;
+
+        // --- Dark Mode Logic ---
+        const themeToggle = document.getElementById('checkbox');
+        const currentTheme = localStorage.getItem('theme');
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-mode');
+                themeToggle.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeToggle.checked = false;
+            }
+            updateChartThemes(theme);
+        }
+
+        if (currentTheme) {
+            applyTheme(currentTheme);
+        } else { // Check system preference
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                applyTheme('dark');
+            }
+        }
+
+        themeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                localStorage.setItem('theme', 'dark');
+                applyTheme('dark');
+            } else {
+                localStorage.setItem('theme', 'light');
+                applyTheme('light');
+            }
+        });
+
+        function getChartAxisColor() {
+            return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        }
+        function getChartFontColor() {
+            return document.body.classList.contains('dark-mode') ? '#e0e0e0' : '#666';
+        }
+
+        function updateChartThemes(theme) {
+            const axisColor = getChartAxisColor();
+            const fontColor = getChartFontColor();
+
+            if (priceChartInstance) {
+                priceChartInstance.options.scales.x.grid.color = axisColor;
+                priceChartInstance.options.scales.y.grid.color = axisColor;
+                priceChartInstance.options.scales.x.ticks.color = fontColor;
+                priceChartInstance.options.scales.y.ticks.color = fontColor;
+                price_chart_instance.options.plugins.legend.labels.color = fontColor;
+                price_chart_instance.options.scales.x.title.color = fontColor;
+                price_chart_instance.options.scales.y.title.color = fontColor;
+                priceChartInstance.update();
+            }
+            if (sentimentChartInstance) {
+                sentimentChartInstance.options.scales.x.grid.color = axisColor;
+                sentimentChartInstance.options.scales.y.grid.color = axisColor;
+                sentimentChartInstance.options.scales.x.ticks.color = fontColor;
+                sentimentChartInstance.options.scales.y.ticks.color = fontColor;
+                sentiment_chart_instance.options.plugins.legend.labels.color = fontColor;
+                sentiment_chart_instance.options.scales.x.title.color = fontColor;
+                sentiment_chart_instance.options.scales.y.title.color = fontColor;
+                sentimentChartInstance.update();
+            }
+        }
+
+
+        async function fetchChartData(ticker) {
+            try {
+                const response = await fetch(`/api/v1/chart_data/${ticker}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Fehler beim Abrufen der Chart-Daten:", error);
+                return null;
+            }
+        }
+
+        async function fetchSentimentData(ticker) {
+            try {
+                const response = await fetch(`/api/v1/sentiment_data/${ticker}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Fehler beim Abrufen der Sentiment-Daten:", error);
+                return null;
+            }
+        }
+
+
+        async function renderCharts() {
+            const priceData = await fetchChartData(tickerSymbol);
+            const sentimentData = await fetchSentimentData(tickerSymbol);
+
+            // --- Price Chart ---
+            if (!priceData) {
+                console.error("Keine Daten zum Rendern des Charts vorhanden.");
+                // Optional: Fehlermeldung im UI anzeigen
+            } else {
+                const historicalDates = priceData.historical.map(item => item.date);
+                const historicalPrices = priceData.historical.map(item => item.price);
+                
+                const predictionDates = priceData.predictions.map(item => item.date);
+                const predictedPrices = priceData.predictions.map(item => item.price);
+
+                let combinedPredictionDates = [];
+                let combinedPredictedPrices = [];
+
+                if (priceData.historical.length > 0 && priceData.predictions.length > 0) {
+                    combinedPredictionDates = [priceData.historical[priceData.historical.length - 1].date, ...predictionDates];
+                    combinedPredictedPrices = [priceData.historical[priceData.historical.length - 1].price, ...predictedPrices];
+                } else if (priceData.predictions.length > 0) {
+                    combinedPredictionDates = predictionDates;
+                    combinedPredictedPrices = predictedPrices;
+                }
+
+                const priceCtx = document.getElementById('priceChart').getContext('2d');
+                priceChartInstance = new Chart(priceCtx, {
+                    type: 'line',
+                    data: {
+                        labels: historicalDates,
+                        datasets: [
+                            {
+                                label: `Schlusskurs ${tickerSymbol}`,
+                                data: historicalPrices,
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: `Vorhersage ${tickerSymbol}`,
+                                data: combinedPredictedPrices.map((price, index) => ({ x: combinedPredictionDates[index], y: price })),
+                                borderColor: 'rgb(255, 99, 132)',
+                                borderDash: [5, 5],
+                                tension: 0.1,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day',
+                                    tooltipFormat: 'dd.MM.yyyy',
+                                    displayFormats: { day: 'dd.MM' }
+                                },
+                                title: { display: true, text: 'Datum', color: getChartFontColor() },
+                                grid: { color: getChartAxisColor() },
+                                ticks: { color: getChartFontColor() }
+                            },
+                            y: {
+                                title: { display: true, text: 'Preis (USD)', color: getChartFontColor() },
+                                beginAtZero: false,
+                                grid: { color: getChartAxisColor() },
+                                ticks: { color: getChartFontColor() }
+                            }
+                        },
+                        plugins: {
+                            tooltip: { mode: 'index', intersect: false },
+                            legend: { labels: { color: getChartFontColor() } }
+                        }
+                    }
+                });
+            }
+
+            // --- Sentiment Chart ---
+            if (!sentimentData || sentimentData.sentiments.length === 0) {
+                console.warn("Keine Sentiment-Daten zum Rendern des Charts vorhanden.");
+                // Optional: Fehlermeldung im UI anzeigen
+            } else {
+                const sentimentDates = sentimentData.sentiments.map(item => item.date);
+                const sentimentScores = sentimentData.sentiments.map(item => item.score);
+
+                const sentimentCtx = document.getElementById('sentimentChart').getContext('2d');
+                sentimentChartInstance = new Chart(sentimentCtx, {
+                    type: 'bar', // Balkendiagramm für Sentiment
+                    data: {
+                        labels: sentimentDates,
+                        datasets: [{
+                            label: `Sentiment Score ${tickerSymbol}`,
+                            data: sentimentScores,
+                            backgroundColor: sentimentScores.map(score => {
+                                if (score > 0) return 'rgba(75, 192, 75, 0.6)'; // Grün für positiv
+                                if (score < 0) return 'rgba(255, 99, 132, 0.6)'; // Rot für negativ
+                                return 'rgba(201, 203, 207, 0.6)'; // Grau für neutral
+                            }),
+                            borderColor: sentimentScores.map(score => {
+                                if (score > 0) return 'rgba(75, 192, 75, 1)';
+                                if (score < 0) return 'rgba(255, 99, 132, 1)';
+                                return 'rgba(201, 203, 207, 1)';
+                            }),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day',
+                                    tooltipFormat: 'dd.MM.yyyy',
+                                    displayFormats: { day: 'dd.MM' }
+                                },
+                                title: { display: true, text: 'Datum', color: getChartFontColor() },
+                                grid: { color: getChartAxisColor() },
+                                ticks: { color: getChartFontColor() }
+                            },
+                            y: {
+                                title: { display: true, text: 'Sentiment Score', color: getChartFontColor() },
+                                beginAtZero: false,
+                                suggestedMin: -1.5, // Etwas Platz unter -1
+                                suggestedMax: 1.5,  // Etwas Platz über +1
+                                ticks: {
+                                    stepSize: 1,
+                                    color: getChartFontColor()
+                                },
+                                grid: { color: getChartAxisColor() }
+                            }
+                        },
+                        plugins: {
+                            tooltip: { mode: 'index', intersect: false },
+                            legend: { display: true, labels: { color: getChartFontColor() } }
+                        }
+                    }
+                });
+            }
+            // Initialisiere die Chart-Themes basierend auf dem aktuellen Modus
+            updateChartThemes(localStorage.getItem('theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        }
+
+        renderCharts(); // Aufruf der neuen Funktion
+    </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  fastapi_app:
+    build:
+      context: ./fastapi_app
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi_app/app:/app
+      - ./fastapi_app/templates:/app/templates
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      FMP_API_KEY: ${FMP_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      ALPACA_API_KEY: ${ALPACA_API_KEY} # Falls FastAPI direkten Zugriff benötigt
+      ALPACA_SECRET_KEY: ${ALPACA_SECRET_KEY} # Falls FastAPI direkten Zugriff benötigt
+      ALPACA_PAPER: ${ALPACA_PAPER} # Falls FastAPI direkten Zugriff benötigt
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - trading_net
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trading_net
+
+  postgres:
+    image: "postgres:13-alpine"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - trading_net
+
+  alpaca_service:
+    build:
+      context: ./alpaca_service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ALPACA_API_KEY: ${ALPACA_API_KEY}
+      ALPACA_SECRET_KEY: ${ALPACA_SECRET_KEY}
+      ALPACA_PAPER: ${ALPACA_PAPER}
+    depends_on:
+      - postgres
+    networks:
+      - trading_net
+
+  yfinance_service:
+    build:
+      context: ./yfinance_service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      - postgres
+    networks:
+      - trading_net
+
+  model_training_service:
+    build: ./model_training_service/service
+    container_name: fbot_model_training_service_1
+    env_file:
+      - .env
+    depends_on:
+      - postgres  # Stellt sicher, dass die DB bereit ist
+      - research_fmp_service # Sollte gelaufen sein, um Ticker zu haben
+      - yfinance_service     # Sollte gelaufen sein, um Kursdaten zu haben
+    restart: unless-stopped # oder 'no' wenn es nur manuell/einmalig laufen soll
+    volumes:
+      # Persistente Speicherung für trainierte Modelle
+      - ./model_training_service/trained_models:/app/trained_models
+    networks:
+      - trading_net
+
+  research_fmp_service:
+    build:
+      context: ./research_fmp_service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      FMP_API_KEY: ${FMP_API_KEY}
+    depends_on:
+      - postgres
+    networks:
+      - trading_net
+
+  trading_decision_service:
+    build:
+      context: ./trading_decision_service/service
+      dockerfile: Dockerfile
+    container_name: fbot_trading_decision_service_1
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - alpaca_service # Stellt sicher, dass Kontodaten aktuell sein könnten
+      - model_training_service # Stellt sicher, dass Vorhersagen existieren könnten
+    restart: unless-stopped
+    networks:
+      - trading_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  trading_net:
+    driver: bridge

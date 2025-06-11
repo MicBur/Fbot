@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio - Trading Bot</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
+        nav a { margin: 0 15px; color: #fff; text-decoration: none; }
+        .container { background-color: #fff; padding: 20px; margin-top: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #e9e9e9; }
+        .error { color: red; font-weight: bold; }
+        .positive { color: green; }
+        .negative { color: red; }
+        #currentTime { font-size: 0.9em; color: #555; position: absolute; top:5px; right:5px; background-color: white; padding: 2px 5px; border-radius:3px;}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Trading Bot Portfolio</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/portfolio">Portfolio</a>
+        </nav>
+    </header>
+    <div id="currentTime">Lädt...</div>
+
+    <div class="container">
+        {% if error_message %}
+            <p class="error">{{ error_message }}</p>
+        {% endif %}
+
+        {% if account_info %}
+            <h2>Kontoinformationen</h2>
+            <p><strong>Kontonummer:</strong> {{ account_info.account_number }}</p>
+            <p><strong>Status:</strong> {{ account_info.status }}</p>
+            <p><strong>Equity:</strong> {{ "%.2f"|format(account_info.equity) }} {{ account_info.currency }}</p>
+            <p><strong>Portfolio Wert:</strong> {{ "%.2f"|format(account_info.portfolio_value) }} {{ account_info.currency }}</p>
+            <p><strong>Kaufkraft:</strong> {{ "%.2f"|format(account_info.buying_power) }} {{ account_info.currency }}</p>
+            <p><strong>Cash:</strong> {{ "%.2f"|format(account_info.cash) }} {{ account_info.currency }}</p>
+            <p><small>Letzte Aktualisierung: {{ account_info.last_updated.strftime('%Y-%m-%d %H:%M:%S %Z') }}</small></p>
+        {% else %}
+            <p>Keine Kontoinformationen verfügbar.</p>
+        {% endif %}
+
+        <h2>Positionen</h2>
+        {% if positions %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Menge</th>
+                        <th>Durchschn. Einstiegspreis</th>
+                        <th>Aktueller Preis</th>
+                        <th>Marktwert</th>
+                        <th>Unreal. G/V</th>
+                        <th>Unreal. G/V (%)</th>
+                        <th>Seite</th>
+                        <th>Börse</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in positions %}
+                    <tr>
+                        <td>{{ p.symbol }}</td>
+                        <td>{{ "%.4f"|format(p.qty) }}</td>
+                        <td>{{ "%.2f"|format(p.avg_entry_price) }}</td>
+                        <td>{{ "%.2f"|format(p.current_price) }}</td>
+                        <td>{{ "%.2f"|format(p.market_value) }}</td>
+                        <td class="{{ 'positive' if p.unrealized_pl > 0 else 'negative' if p.unrealized_pl < 0 else '' }}">{{ "%.2f"|format(p.unrealized_pl) }}</td>
+                        <td class="{{ 'positive' if p.unrealized_plpc > 0 else 'negative' if p.unrealized_plpc < 0 else '' }}">{{ "%.2f"|format(p.unrealized_plpc * 100) }}%</td>
+                        <td>{{ p.side }}</td>
+                        <td>{{ p.exchange }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Keine Positionen im Portfolio.</p>
+        {% endif %}
+    </div>
+    <script>
+        function updateTime() {
+            fetch('/api/time')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentTime').textContent = data.time;
+                })
+                .catch(error => console.error('Fehler beim Abrufen der Uhrzeit:', error));
+        }
+        setInterval(updateTime, 1000);
+        updateTime(); // Initial call
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
+        nav a { margin: 0 15px; color: #fff; text-decoration: none; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        #currentTime { font-size: 0.9em; color: #555; position: absolute; top:5px; right:5px; background-color: white; padding: 2px 5px; border-radius:3px;}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Willkommen beim Trading Bot!</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/portfolio">Portfolio</a>
+        </nav>
+    </header>
+    <div id="currentTime">Lädt...</div>
+
+    <div class="container" style="margin-top: 20px;">
+        <p>FastAPI läuft.</p>
+        <p>{{ db_status }}</p>
+        <p>{{ redis_status }}</p>
+        <p>Hier könnten dein Portfolio, Diagramme und die Uhrzeit angezeigt werden.</p>
+    </div>
+
+    <script>
+        function updateTime() {
+            fetch('/api/time')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentTime').textContent = data.time;
+                })
+                .catch(error => console.error('Fehler beim Abrufen der Uhrzeit:', error));
+        }
+        setInterval(updateTime, 1000);
+        updateTime(); // Initial call
+    </script>
+</body>
+</html>
