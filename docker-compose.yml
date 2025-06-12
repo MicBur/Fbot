@@ -97,8 +97,9 @@ services:
       - yfinance_service     # Sollte gelaufen sein, um Kursdaten zu haben
     restart: unless-stopped # oder 'no' wenn es nur manuell/einmalig laufen soll
     volumes:
-      # Persistente Speicherung für trainierte Modelle
-      - ./model_training_service/trained_models:/app/trained_models
+      # Code-Mount für den Service-Code (nützlich für Entwicklung)
+      - ./model_training_service/service:/app
+      - trained_models_data:/app/trained_models # Persistente Speicherung für trainierte Modelle
     networks:
       - trading_net
 
@@ -137,6 +138,7 @@ services:
 
 volumes:
   postgres_data:
+  trained_models_data: # Deklaration des benannten Volumes für Modelle
   redis_data:
 
 networks:

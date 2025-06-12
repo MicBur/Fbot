@@ -120,9 +120,14 @@ def get_current_positions(conn) -> dict:
 
 def check_prediction_deviations_and_flag(conn, current_positions_db: dict, alpaca_api: tradeapi.REST):
     logging.info("Prüfe Vorhersageabweichungen für gehaltene Positionen...")
-    today = psycopg2.Date(time.strftime("%Y-%m-%d")) # Aktuelles Datum als Date-Objekt
+    date_str = time.strftime("%Y-%m-%d")
+    year, month, day = map(int, date_str.split('-'))
+    today_db_date = psycopg2.Date(year, month, day) # Aktuelles Datum als Date-Objekt für DB-Abfragen
 
     for ticker, position_data in current_positions_db.items():
+        if not isinstance(position_data, psycopg2.extras.DictRow):
+            logging.warning(f"Position data for {ticker} is not in the expected DictRow format. Skipping deviation check for this ticker.")
+            continue
         try:
             # Hole die letzte Vorhersage für heute (oder gestern, falls heute noch keine generiert wurde)
             # für diesen Ticker.
@@ -133,7 +138,7 @@ def check_prediction_deviations_and_flag(conn, current_positions_db: dict, alpac
                     WHERE ticker = %s AND prediction_date <= %s
                     ORDER BY prediction_date DESC, generated_at DESC
                     LIMIT 1;
-                """, (ticker, today))
+                """, (ticker, today_db_date))
                 latest_relevant_prediction = cur.fetchone()
 
             if not latest_relevant_prediction:

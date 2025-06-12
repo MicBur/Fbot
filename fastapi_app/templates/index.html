@@ -1,45 +1,131 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Bot</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
-        nav a { margin: 0 15px; color: #fff; text-decoration: none; }
-        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        #currentTime { font-size: 0.9em; color: #555; position: absolute; top:5px; right:5px; background-color: white; padding: 2px 5px; border-radius:3px;}
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Willkommen beim Trading Bot!</h1>
-        <nav>
-            <a href="/">Home</a>
-            <a href="/portfolio">Portfolio</a>
-        </nav>
-    </header>
-    <div id="currentTime">Lädt...</div>
+{% extends "base.html" %}
 
+{% block title %}Trading Bot - Home{% endblock %}
+
+{% block head_extra_styles %}
+    <style>
+        /* Page-specific styles for index.html */
+        /* body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; } */
+        /* body.dark-mode { background-color: #121212; color: #e0e0e0; } */
+        /* body.dark-mode header { background-color: #1e1e1e; } */ /* Moved to base */
+        /* body.dark-mode nav a { color: #bbb; } */ /* Moved to base */
+        body.dark-mode .container { background-color: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        body.dark-mode #currentTime, body.dark-mode #marketStatus { background-color: #2c2c2c; color: #e0e0e0; border: 1px solid #333;}
+        
+        /* header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; } */ /* Moved to base */
+        /* nav a { margin: 0 15px; color: #fff; text-decoration: none; } */ /* Moved to base */
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+
+        /* Styling für Potenzielle Käufe */
+        #potentialBuysContainer .list-group-item {
+            background-color: #e7f3ff; /* Ein helles, angenehmes Blau */
+            color: #000; /* Schwarze Schrift */
+            border-color: #b8d6f3; /* Passender Rand */
+        }
+        body.dark-mode #potentialBuysContainer .list-group-item {
+            background-color: #2a3a4a; /* Dunkleres Blau für Dark Mode */
+            color: #e0e0e0; /* Helle Schrift für Dark Mode */
+            border-color: #3a506b;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+    <h1>Willkommen beim TradingBot1488</h1>
+    
     <div class="container" style="margin-top: 20px;">
         <p>FastAPI läuft.</p>
         <p>{{ db_status }}</p>
         <p>{{ redis_status }}</p>
         <p>Hier könnten dein Portfolio, Diagramme und die Uhrzeit angezeigt werden.</p>
-    </div>
 
+        <div id="marketStatus" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+            Marktstatus wird geladen...
+        </div>
+
+        <h2 style="margin-top: 30px;">Potenzielle Käufe</h2>
+        <div id="potentialBuysContainer">
+            <p>Lade potenzielle Käufe...</p>
+            <!-- Hier werden die potenziellen Käufe dynamisch eingefügt -->
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
     <script>
-        function updateTime() {
-            fetch('/api/time')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('currentTime').textContent = data.time;
-                })
-                .catch(error => console.error('Fehler beim Abrufen der Uhrzeit:', error));
+        // Die Funktion updateTime() für die digitale Uhr wird nicht mehr direkt für die Anzeige benötigt,
+        // aber der /api/time Endpunkt wird weiterhin vom Market Countdown genutzt (indirekt, da dieser clientseitige Zeit nutzt,
+        // aber es ist gut, den Endpunkt zu haben, falls serverseitige Zeit benötigt wird).
+        // Für die Analoguhr verwenden wir clientseitige Zeit.
+        // fetch('/api/time').then(response => response.json()).then(data => {
+        // console.log("Server time (for reference):", data.time);
+        // }).catch(error => console.error('Fehler beim Abrufen der Server-Uhrzeit:', error));
+        // Der Market Countdown nutzt aktuell clientseitige Zeit, umgewandelt in ET.
+        // Der /api/time Endpunkt ist also momentan nicht kritisch für die Frontend-Funktionalität,
+        // aber es schadet nicht, ihn zu haben.
+        // Market Countdown
+        function getMarketStatus() {
+            const marketStatusEl = document.getElementById('marketStatus');
+            const now = new Date();
+            const nowET = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+
+            const dayOfWeekET = nowET.getDay(); // 0 (So) - 6 (Sa)
+            const hourET = nowET.getHours();
+            const minuteET = nowET.getMinutes();
+            const secondET = nowET.getSeconds();
+
+            const marketOpenHour = 9;
+            const marketOpenMinute = 30;
+            const marketCloseHour = 16;
+            const marketCloseMinute = 0;
+
+            let statusMessage = "Börse (NYSE/NASDAQ) ist geschlossen.";
+
+            if (dayOfWeekET >= 1 && dayOfWeekET <= 5) { // Mo - Fr
+                const timeToOpen = (marketOpenHour * 3600 + marketOpenMinute * 60) - (hourET * 3600 + minuteET * 60 + secondET);
+                const timeToClose = (marketCloseHour * 3600 + marketCloseMinute * 60) - (hourET * 3600 + minuteET * 60 + secondET);
+
+                if (timeToOpen > 0) {
+                    const h = Math.floor(timeToOpen / 3600);
+                    const m = Math.floor((timeToOpen % 3600) / 60);
+                    const s = timeToOpen % 60;
+                    statusMessage = `Börse öffnet in (ET): ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                } else if (timeToClose > 0) {
+                    const h = Math.floor(timeToClose / 3600);
+                    const m = Math.floor((timeToClose % 3600) / 60);
+                    const s = timeToClose % 60;
+                    statusMessage = `Börse schließt in (ET): ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                }
+            }
+            marketStatusEl.textContent = statusMessage;
         }
-        setInterval(updateTime, 1000);
-        updateTime(); // Initial call
+        setInterval(getMarketStatus, 1000);
+        getMarketStatus();
+
+        // Potenzielle Käufe laden
+        async function fetchPotentialBuys() {
+            const container = document.getElementById('potentialBuysContainer');
+            try {
+                const response = await fetch('/api/v1/potential_buys');
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.potential_buys && data.potential_buys.length > 0) {
+                    let html = '<ul class="list-group">';
+                    data.potential_buys.forEach(buy => {
+                        html += `<li class="list-group-item"><strong>${buy.ticker}</strong> - Aktuell: $${buy.current_price.toFixed(2)}, Vorhersage für ${buy.prediction_date}: $${buy.predicted_price.toFixed(2)} (Potenzial: ${((buy.predicted_price - buy.current_price) / buy.current_price * 100).toFixed(1)}%)</li>`;
+                    });
+                    html += '</ul>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p>Aktuell keine eindeutigen Kaufkandidaten basierend auf den Vorhersagen.</p>';
+                }
+            } catch (error) {
+                console.error("Fehler beim Laden potenzieller Käufe:", error);
+                container.innerHTML = '<p>Fehler beim Laden der Kaufkandidaten.</p>';
+            }
+        }
+        fetchPotentialBuys();
+
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen{% endblock %}
+
+{% block head_extra_styles %}
+    <style>
+        body { transition: background-color 0.3s, color 0.3s; }
+        .settings-section { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .settings-section h2 { margin-top: 0; }
+        /* Dark Mode Styles */
+        body.dark-mode { background-color: #121212; color: #e0e0e0; }
+        body.dark-mode .container, body.dark-mode .settings-section { background-color: #1e1e1e; border-color: #333; }
+        body.dark-mode h1, body.dark-mode h2 { color: #ffffff; }
+        body.dark-mode label { color: #c0c0c0; }
+        body.dark-mode .form-control { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+        body.dark-mode .btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h1>Einstellungen</h1>
+
+        <div class="settings-section">
+            <h2>Diagramm-Einstellungen</h2>
+            <form id="chartSettingsForm">
+                <div class="form-group">
+                    <label for="historyDays">Historische Tage im Chart (Ticker-Detail):</label>
+                    <select class="form-control" id="historyDays">
+                        <option value="14">14 Tage (Standard)</option>
+                        <option value="30">30 Tage</option>
+                        <option value="60">60 Tage</option>
+                        <option value="90">90 Tage</option>
+                        <option value="365">1 Jahr</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-info" onclick="applyChartSettings()">Einstellung für nächste Chart-Ansicht merken</button>
+            </form>
+            <small class="form-text text-muted">Diese Einstellung wird lokal im Browser gespeichert und beim nächsten Laden einer Ticker-Detailseite angewendet.</small>
+        </div>
+
+        <div class="settings-section">
+            <h2>Portfolio-Einstellungen</h2>
+            <div class="form-group">
+                <label for="portfolioRefreshInterval">Automatisches Aktualisierungsintervall der Portfolio-Seite:</label>
+                <select class="form-control bot-setting-selector" id="portfolioRefreshInterval" data-key="portfolio_refresh_interval">
+                    <option value="0">Deaktiviert</option>
+                    <option value="10">Alle 10 Sekunden</option>
+                    <option value="30">Alle 30 Sekunden</option>
+                    <option value="60">Alle 60 Sekunden (Standard)</option>
+                    <option value="120">Alle 2 Minuten</option>
+                    <option value="300">Alle 5 Minuten</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h2>Trading-Parameter (Platzhalter)</h2>
+            <p>Hier könnten Schieberegler für Parameter wie "Aggressivität" oder "maximales Kapital pro Trade" implementiert werden. Dies erfordert Backend-Anpassungen, um diese Werte dynamisch zu speichern und von den Trading-Diensten auszulesen.</p>
+            <div class="form-group">
+                <label for="tradeAggressiveness">Aggressivität (1-10):</label>
+                <input type="range" class="form-control-range bot-setting-slider" id="tradeAggressiveness" data-key="trade_aggressiveness" min="1" max="10" value="5">
+                <span id="tradeAggressivenessValue">5</span>
+            </div>
+             <div class="form-group">
+                <label for="maxCapitalPerTrade">Max. Kapital pro Trade (%):</label>
+                <input type="range" class="form-control-range bot-setting-slider" id="maxCapitalPerTrade" data-key="max_capital_per_trade_percent" min="1" max="20" value="5">
+                <span id="maxCapitalPerTradeValue">5</span> %
+            </div>
+            <button type="button" class="btn btn-success" onclick="saveAllBotSettings()">Bot-Einstellungen Speichern</button>
+            <small id="saveStatus" class="form-text text-muted ml-2"></small>
+        </div>
+
+        <a href="/" class="btn btn-primary mt-3 mb-5">Zurück zur Startseite</a>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Chart Settings Logic
+        const historyDaysSelect = document.getElementById('historyDays');
+        if(localStorage.getItem('chartHistoryDays')) {
+            historyDaysSelect.value = localStorage.getItem('chartHistoryDays');
+        }
+        function applyChartSettings() {
+            localStorage.setItem('chartHistoryDays', historyDaysSelect.value);
+            alert('Diagramm-Einstellung für historische Tage gespeichert. Wird beim nächsten Laden einer Ticker-Detailseite angewendet.');
+        }
+
+        // Bot Settings Logic
+        const settingsData = {{ settings_data | tojson | safe }};
+        const sliders = document.querySelectorAll('.bot-setting-slider');
+        const selectors = document.querySelectorAll('.bot-setting-selector');
+
+        sliders.forEach(slider => {
+            const key = slider.dataset.key;
+            const valueSpan = document.getElementById(slider.id + 'Value');
+            if (settingsData[key] && settingsData[key].value) {
+                slider.value = settingsData[key].value;
+                if (valueSpan) valueSpan.textContent = settingsData[key].value;
+            }
+
+            slider.addEventListener('input', () => {
+                if (valueSpan) valueSpan.textContent = slider.value;
+            });
+        });
+
+        selectors.forEach(selector => {
+            const key = selector.dataset.key;
+            if (settingsData[key] && settingsData[key].value) {
+                selector.value = settingsData[key].value;
+            }
+            // Event listener für 'change' wird vom Button "Speichern" abgedeckt
+        });
+
+        async function saveBotSetting(key, value) {
+            const response = await fetch('/api/v1/bot_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ setting_key: key, setting_value: value })
+            });
+            return response.ok;
+        }
+
+        async function saveAllBotSettings() {
+            const saveStatusEl = document.getElementById('saveStatus');
+            saveStatusEl.textContent = 'Speichere...';
+            let allSaved = true;
+            for (const slider of sliders) {
+                const key = slider.dataset.key;
+                const value = slider.value;
+                const success = await saveBotSetting(key, value);
+                if (!success) {
+                    allSaved = false;
+                    break;
+                }
+            }
+            for (const selector of selectors) {
+                const key = selector.dataset.key;
+                const value = selector.value;
+                const success = await saveBotSetting(key, value);
+                if (!success) { allSaved = false; break; }
+            }
+            saveStatusEl.textContent = allSaved ? 'Alle Einstellungen erfolgreich gespeichert!' : 'Fehler beim Speichern einiger Einstellungen.';
+            setTimeout(() => { saveStatusEl.textContent = ''; }, 3000);
+        }
+    </script>
+{% endblock %}

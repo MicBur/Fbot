@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Überwachte Ticker{% endblock %}
+
+{% block head_extra_styles %}
+    <style>
+        /* Page-specific styles for tickers.html */
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        body.dark-mode .container {
+            background-color: #1e1e1e;
+        }
+        body.dark-mode h1 {
+            color: #ffffff;
+        }
+        body.dark-mode .table {
+            color: #e0e0e0;
+        }
+         body.dark-mode .table th, body.dark-mode .table td {
+            border-color: #333;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h1>Überwachte Ticker</h1>
+        {% if tickers %}
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Name</th>
+                        <th>Quelle</th>
+                        <th>Hinzugefügt am</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticker_info in tickers %}
+                    <tr>
+                        <td><a href="/tickers/{{ ticker_info.ticker }}">{{ ticker_info.ticker }}</a></td>
+                        <td>{{ ticker_info.name if ticker_info.name else 'N/A' }}</td>
+                        <td>{{ ticker_info.source if ticker_info.source else 'N/A' }}</td>
+                        <td>{{ ticker_info.added_at.strftime('%Y-%m-%d %H:%M:%S') if ticker_info.added_at else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Keine Ticker in der Datenbank gefunden.</p>
+        {% endif %}
+        <a href="/" class="btn btn-primary mt-3">Zurück zur Startseite</a>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {# Hier könnten spezifische JavaScript-Anweisungen für die Ticker-Seite stehen, falls benötigt #}
+    <script>
+        // window.onThemeChange = function(theme) {
+            // Spezifische Anpassungen für tickers.html bei Theme-Wechsel, falls nötig
+        // };
+    </script>
+{% endblock %}
