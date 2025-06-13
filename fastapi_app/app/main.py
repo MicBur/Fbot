@@ -98,8 +98,26 @@ async def get_portfolio(request: Request, db: Session = Depends(get_db)):
             # Konvertiere RowProxy zu einem Dict-ähnlichen Objekt, falls nötig, oder greife direkt auf Spalten zu
             account_info = dict(account_info_result._mapping)
 
-        positions_result = db.execute(text("SELECT * FROM positions ORDER BY symbol;")).fetchall()
-        positions = [dict(row._mapping) for row in positions_result]
+        # Stelle sicher, dass 'purchased_at' aus der DB geholt wird
+        positions_result = db.execute(text("SELECT symbol, qty, avg_entry_price, current_price, market_value, unrealized_pl, purchased_at FROM positions ORDER BY symbol;")).fetchall()
+        
+        temp_positions = []
+        now_utc_date = datetime.now(ZoneInfo("UTC")).date() # Nur Datum für Tagesvergleich
+
+        for row_proxy in positions_result:
+            pos = dict(row_proxy._mapping)
+            purchased_at_val = pos.get('purchased_at')
+            if purchased_at_val:
+                # Konvertiere zu date-Objekt, falls es ein datetime-Objekt ist
+                purchased_date = purchased_at_val.date() if isinstance(purchased_at_val, datetime) else purchased_at_val
+                
+                days_held = (now_utc_date - purchased_date).days
+                remaining_days = 7 - days_held
+                pos['remaining_holding_days'] = max(0, remaining_days) # Zeige nicht negativ an
+            else:
+                pos['remaining_holding_days'] = None # Oder einen Platzhalter-String
+            temp_positions.append(pos)
+        positions = temp_positions
 
         if positions:
             # Daten für Tortendiagramm (Marktwertverteilung)

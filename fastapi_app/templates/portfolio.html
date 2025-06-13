@@ -116,6 +116,9 @@
                             <p class="card-text mb-0">Aktueller Preis: ${{ "%.2f"|format(position.current_price|float) }}</p>
                             <p class="card-text mb-0">Marktwert: ${{ "%.2f"|format(position.market_value|float) }}</p>
                             <p class="card-text mb-0">Unrealisierter G/V: <span style="color: {{ 'green' if position.unrealized_pl|float >= 0 else 'red' }};">${{ "%.2f"|format(position.unrealized_pl|float) }}</span></p>
+                            {% if position.remaining_holding_days is not none %}
+                            <p class="card-text mb-0"><small>Voraussichtl. Haltedauer: noch ca. {{ position.remaining_holding_days }} Tag(e)</small></p>
+                            {% endif %}
                             <div class="chart-container-small">
                                 <canvas id="chart-{{ position.symbol }}"></canvas>
                             </div>

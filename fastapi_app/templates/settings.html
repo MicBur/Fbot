@@ -40,21 +40,6 @@
         </div>
 
         <div class="settings-section">
-            <h2>Portfolio-Einstellungen</h2>
-            <div class="form-group">
-                <label for="portfolioRefreshInterval">Automatisches Aktualisierungsintervall der Portfolio-Seite:</label>
-                <select class="form-control bot-setting-selector" id="portfolioRefreshInterval" data-key="portfolio_refresh_interval">
-                    <option value="0">Deaktiviert</option>
-                    <option value="10">Alle 10 Sekunden</option>
-                    <option value="30">Alle 30 Sekunden</option>
-                    <option value="60">Alle 60 Sekunden (Standard)</option>
-                    <option value="120">Alle 2 Minuten</option>
-                    <option value="300">Alle 5 Minuten</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="settings-section">
             <h2>Trading-Parameter (Platzhalter)</h2>
             <p>Hier könnten Schieberegler für Parameter wie "Aggressivität" oder "maximales Kapital pro Trade" implementiert werden. Dies erfordert Backend-Anpassungen, um diese Werte dynamisch zu speichern und von den Trading-Diensten auszulesen.</p>
             <div class="form-group">
@@ -90,7 +75,6 @@
         // Bot Settings Logic
         const settingsData = {{ settings_data | tojson | safe }};
         const sliders = document.querySelectorAll('.bot-setting-slider');
-        const selectors = document.querySelectorAll('.bot-setting-selector');
 
         sliders.forEach(slider => {
             const key = slider.dataset.key;
@@ -103,14 +87,6 @@
             slider.addEventListener('input', () => {
                 if (valueSpan) valueSpan.textContent = slider.value;
             });
-        });
-
-        selectors.forEach(selector => {
-            const key = selector.dataset.key;
-            if (settingsData[key] && settingsData[key].value) {
-                selector.value = settingsData[key].value;
-            }
-            // Event listener für 'change' wird vom Button "Speichern" abgedeckt
         });
 
         async function saveBotSetting(key, value) {
@@ -134,12 +110,6 @@
                     allSaved = false;
                     break;
                 }
-            }
-            for (const selector of selectors) {
-                const key = selector.dataset.key;
-                const value = selector.value;
-                const success = await saveBotSetting(key, value);
-                if (!success) { allSaved = false; break; }
             }
             saveStatusEl.textContent = allSaved ? 'Alle Einstellungen erfolgreich gespeichert!' : 'Fehler beim Speichern einiger Einstellungen.';
             setTimeout(() => { saveStatusEl.textContent = ''; }, 3000);
